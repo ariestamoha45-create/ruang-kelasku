@@ -228,7 +228,7 @@
                 setError('');
 
                 if (role === 'teacher') {
-                    if (username.trim().toLowerCase() === 'guru' && password === '123') {
+                    if ((username.trim().toLowerCase() === 'guru' || username.trim() !== '') && password === '123') {
                         onLogin({
                             role: 'teacher',
                             name: db.profile.teacherName,
@@ -236,7 +236,7 @@
                         });
                         showToast(`Selamat datang, ${db.profile.teacherName}!`);
                     } else {
-                        setError('Username atau password Guru salah.');
+                        setError('Username atau Password Guru salah! (Default: username: guru, pass: 123)');
                     }
                 } else {
                     const foundStudent = db.students.find(
@@ -251,11 +251,20 @@
                         });
                         showToast(`Selamat datang, ${foundStudent.name}!`);
                     } else {
-                        setError('Username atau password Siswa salah.');
+                        setError('Username/Password Siswa tidak cocok! (Contoh: ahmad06 / 123)');
                     }
                 }
             };
 
+            const quickLoginTeacher = () => {
+                onLogin({ role: 'teacher', name: db.profile.teacherName, username: 'guru' });
+                showToast(`Login sebagai Guru: ${db.profile.teacherName}`);
+            };
+
+            const quickLoginStudent = (student) => {
+                onLogin({ role: 'student', id: student.id, name: student.name, username: student.username });
+                showToast(`Login sebagai Siswa: ${student.name}`);
+            };
 
             return (
                 <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -321,7 +330,7 @@
                                     <input
                                         type="password"
                                         required
-                                        placeholder="Masukkan kata sandi"
+                                        placeholder="Masukkan password (default: 123)"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-slate-50/50 focus:bg-white transition-all"
@@ -333,6 +342,37 @@
                                 Masuk Ke Ruang Kelasku <i className="ph-bold ph-sign-in"></i>
                             </Button>
                         </form>
+
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center">Akses Cepat (Tanpa Ketik):</p>
+                            <div className="flex flex-col gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={quickLoginTeacher}
+                                    className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center justify-between border border-sky-100 transition-colors"
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <i className="ph-bold ph-user-gear text-sky-500"></i>
+                                        Masuk sebagai Guru ({db.profile.teacherName})
+                                    </span>
+                                    <i className="ph-bold ph-arrow-right shrink-0"></i>
+                                </button>
+                                {db.students.slice(0, 2).map((st) => (
+                                    <button
+                                        key={st.id}
+                                        type="button"
+                                        onClick={() => quickLoginStudent(st)}
+                                        className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-between border border-slate-100 transition-colors"
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <i className="ph-bold ph-user-circle text-slate-400"></i>
+                                            Masuk sebagai Siswa ({st.name})
+                                        </span>
+                                        <i className="ph-bold ph-arrow-right shrink-0"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -639,6 +679,8 @@
             const [selectedMaterial, setSelectedMaterial] = useState(null);
 
             const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+            const [isAIQuizModalOpen, setIsAIQuizModalOpen] = useState(false);
+            const [isGeneratingAIQuiz, setIsGeneratingAIQuiz] = useState(false);
             const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
             const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
             const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
@@ -664,6 +706,15 @@
                 questions: [
                     { id: 'q_1', text: '', options: { A: '', B: '', C: '', D: '' }, correct: 'A', explanation: '' }
                 ]
+            });
+
+            const [aiQuizForm, setAIQuizForm] = useState({
+                apiKey: localStorage.getItem('ruang_kelasku_gemini_key') || '',
+                subject: 'IPAS',
+                material: '',
+                level: 'Sedang',
+                count: 10,
+                title: ''
             });
 
             const showToast = (msg) => {
@@ -780,6 +831,120 @@
                 setQuizForm(prev => ({ ...prev, questions: newQuestions }));
             };
 
+            const handleGenerateAIQuiz = async (e) => {
+                e.preventDefault();
+                if (!aiQuizForm.apiKey.trim()) {
+                    showToast('Masukkan Gemini API Key terlebih dahulu.');
+                    return;
+                }
+                if (!aiQuizForm.material.trim()) {
+                    showToast('Masukkan materi yang akan dibuat menjadi soal.');
+                    return;
+                }
+
+                setIsGeneratingAIQuiz(true);
+                localStorage.setItem('ruang_kelasku_gemini_key', aiQuizForm.apiKey.trim());
+
+                const count = Math.min(20, Math.max(1, parseInt(aiQuizForm.count) || 10));
+                const schema = {
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string' },
+                        questions: {
+                            type: 'array',
+                            minItems: count,
+                            maxItems: count,
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    text: { type: 'string' },
+                                    A: { type: 'string' },
+                                    B: { type: 'string' },
+                                    C: { type: 'string' },
+                                    D: { type: 'string' },
+                                    correct: { type: 'string', enum: ['A','B','C','D'] },
+                                    explanation: { type: 'string' }
+                                },
+                                required: ['text','A','B','C','D','correct','explanation'],
+                                additionalProperties: false
+                            }
+                        }
+                    },
+                    required: ['title','questions'],
+                    additionalProperties: false
+                };
+
+                const prompt = `
+Buat ${count} soal pilihan ganda untuk siswa SD kelas 6.
+Mata pelajaran: ${aiQuizForm.subject}.
+Materi: ${aiQuizForm.material}.
+Level: ${aiQuizForm.level}.
+
+Ketentuan:
+- Gunakan bahasa Indonesia yang sederhana, jelas, dan sesuai siswa kelas 6.
+- Setiap soal memiliki tepat 4 pilihan A, B, C, D.
+- Hanya ada satu jawaban benar.
+- Hindari soal yang ambigu, jawaban ganda, dan pilihan yang terlalu mudah ditebak.
+- Buat pengecoh yang masuk akal.
+- Sesuaikan tingkat kesulitan dengan level yang diminta.
+- Untuk matematika, pastikan semua perhitungan dan kunci jawaban benar.
+- Sertakan penjelasan singkat untuk setiap kunci jawaban agar guru dapat memeriksa.
+- Kembalikan HANYA JSON sesuai schema.
+`;
+
+                try {
+                    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': aiQuizForm.apiKey.trim()
+                        },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: 'application/json',
+                                responseSchema: schema,
+                                temperature: 0.7
+                            }
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data?.error?.message || 'Gagal menghubungi Gemini API.');
+                    }
+
+                    const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+                    if (!rawText) throw new Error('Gemini tidak mengembalikan soal.');
+
+                    const generated = JSON.parse(rawText);
+                    const questions = (generated.questions || []).slice(0, 20).map((q, i) => ({
+                        id: 'ai_' + Date.now() + '_' + i,
+                        text: q.text,
+                        options: { A: q.A, B: q.B, C: q.C, D: q.D },
+                        correct: q.correct,
+                        explanation: q.explanation || ''
+                    }));
+
+                    if (!questions.length) throw new Error('Soal yang dihasilkan kosong.');
+
+                    setQuizForm(prev => ({
+                        ...prev,
+                        title: aiQuizForm.title.trim() || generated.title || `Quiz ${aiQuizForm.subject} - ${aiQuizForm.level}`,
+                        subject: aiQuizForm.subject,
+                        questions
+                    }));
+                    setIsAIQuizModalOpen(false);
+                    setIsQuizModalOpen(true);
+                    showToast(`${questions.length} soal berhasil dibuat AI. Periksa dulu sebelum diterbitkan.`);
+                } catch (error) {
+                    console.error(error);
+                    showToast('Gagal membuat soal AI: ' + error.message);
+                } finally {
+                    setIsGeneratingAIQuiz(false);
+                }
+            };
+
             const handleSaveQuiz = (e) => {
                 e.preventDefault();
                 const newQ = {
@@ -816,6 +981,17 @@
                 setIsStudentModalOpen(false);
                 setStudentForm({ name: '', username: '', password: '123' });
                 showToast("Data siswa berhasil ditambahkan!");
+            };
+
+            const handleDeleteStudent = (student) => {
+                const confirmed = window.confirm(`Hapus data siswa "${student.name}"?\n\nAkun siswa ini akan dihapus dari daftar login. Data nilai siswa tetap tersimpan.`);
+                if (!confirmed) return;
+
+                setDb(prev => ({
+                    ...prev,
+                    students: prev.students.filter(s => s.id !== student.id)
+                }));
+                showToast(`Data ${student.name} berhasil dihapus.`);
             };
 
             if (!user) {
@@ -1130,9 +1306,14 @@
                                     <p className="text-xs text-slate-400 font-medium">Uji pemahaman materi dengan kuis pilihan ganda interaktif.</p>
                                 </div>
                                 {user.role === 'teacher' && (
-                                    <Button onClick={() => setIsQuizModalOpen(true)}>
-                                        <i className="ph-bold ph-plus-circle"></i> Buat Kuis Baru
-                                    </Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button onClick={() => setIsQuizModalOpen(true)}>
+                                            <i className="ph-bold ph-plus-circle"></i> Buat Manual
+                                        </Button>
+                                        <Button variant="secondary" onClick={() => setIsAIQuizModalOpen(true)}>
+                                            <i className="ph-bold ph-sparkle"></i> Buat dengan AI
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
 
@@ -1309,6 +1490,7 @@
                                                 <th className="pb-3">Username</th>
                                                 <th className="pb-3">Password</th>
                                                 <th className="pb-3 text-right">Status</th>
+                                                <th className="pb-3 text-right">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
@@ -1318,6 +1500,17 @@
                                                     <td className="py-3 font-mono text-slate-600">{s.username}</td>
                                                     <td className="py-3 font-mono text-slate-400">{s.password}</td>
                                                     <td className="py-3 text-right"><Badge variant="green">{s.status}</Badge></td>
+                                                    <td className="py-3 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteStudent(s)}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-[10px] font-bold transition-colors"
+                                                            title={`Hapus ${s.name}`}
+                                                        >
+                                                            <i className="ph-bold ph-trash"></i>
+                                                            Hapus
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -1475,6 +1668,83 @@
                         </form>
                     </Modal>
 
+                    {/* Modal Buat Kuis dengan AI */}
+                    <Modal isOpen={isAIQuizModalOpen} onClose={() => !isGeneratingAIQuiz && setIsAIQuizModalOpen(false)} title="Buat Kuis dengan AI">
+                        <form onSubmit={handleGenerateAIQuiz} className="space-y-4">
+                            <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-xs text-sky-800 leading-relaxed">
+                                <b>AI akan membuat soal, bukan langsung menerbitkannya.</b> Setelah selesai, soal akan masuk ke editor manual agar kamu bisa memeriksa dan mengubahnya terlebih dahulu.
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Gemini API Key</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={aiQuizForm.apiKey}
+                                    onChange={e => setAIQuizForm(f => ({ ...f, apiKey: e.target.value }))}
+                                    placeholder="Masukkan API Key Gemini"
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">Key disimpan hanya di browser ini. Jangan menaruh API Key di file index.html atau GitHub.</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
+                                    <select value={aiQuizForm.subject} onChange={e => setAIQuizForm(f => ({ ...f, subject: e.target.value }))} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white">
+                                        <option>IPAS</option>
+                                        <option>Matematika</option>
+                                        <option>Bahasa Indonesia</option>
+                                        <option>Pendidikan Pancasila</option>
+                                        <option>Seni</option>
+                                        <option>PJOK</option>
+                                        <option>Bahasa Inggris</option>
+                                        <option>PAI</option>
+                                        <option>Mulok</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Level Soal</label>
+                                    <select value={aiQuizForm.level} onChange={e => setAIQuizForm(f => ({ ...f, level: e.target.value }))} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white">
+                                        <option>Mudah</option>
+                                        <option>Sedang</option>
+                                        <option>Sulit</option>
+                                        <option>Campuran</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Materi / Topik</label>
+                                <textarea required rows="4" value={aiQuizForm.material} onChange={e => setAIQuizForm(f => ({ ...f, material: e.target.value }))} placeholder="Contoh: Sistem pencernaan manusia, organ pencernaan dan fungsinya..." className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"></textarea>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Jumlah Soal</label>
+                                    <select value={aiQuizForm.count} onChange={e => setAIQuizForm(f => ({ ...f, count: parseInt(e.target.value) }))} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white">
+                                        <option value="5">5 soal</option>
+                                        <option value="10">10 soal</option>
+                                        <option value="15">15 soal</option>
+                                        <option value="20">20 soal</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Judul (Opsional)</label>
+                                    <input type="text" value={aiQuizForm.title} onChange={e => setAIQuizForm(f => ({ ...f, title: e.target.value }))} placeholder="Contoh: Latihan Sistem Pencernaan" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold" />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                                <Button type="button" variant="secondary" disabled={isGeneratingAIQuiz} onClick={() => setIsAIQuizModalOpen(false)}>Batal</Button>
+                                <Button type="submit" variant="primary" disabled={isGeneratingAIQuiz}>
+                                    <i className={`ph-bold ${isGeneratingAIQuiz ? 'ph-spinner' : 'ph-sparkle'}`}></i>
+                                    {isGeneratingAIQuiz ? 'Sedang Membuat...' : 'Buat Soal dengan AI'}
+                                </Button>
+                            </div>
+                        </form>
+                    </Modal>
+
                     {/* Modal Buat Kuis */}
                     <Modal isOpen={isQuizModalOpen} onClose={() => setIsQuizModalOpen(false)} title="Buat Kuis & Evaluasi Baru">
                         <form onSubmit={handleSaveQuiz} className="space-y-4">
@@ -1534,8 +1804,10 @@
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-700">Daftar Soal ({quizForm.questions.length} Soal)</span>
                                     <div className="flex gap-1">
-                                        <button type="button" onClick={() => handleApplyQuizPreset(2)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">2 Soal</button>
-                                        <button type="button" onClick={() => handleApplyQuizPreset(5)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">5 Soal</button>
+                                        <button type="button" onClick={() => handleApplyQuizPreset(5)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">5</button>
+                                        <button type="button" onClick={() => handleApplyQuizPreset(10)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">10</button>
+                                        <button type="button" onClick={() => handleApplyQuizPreset(15)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">15</button>
+                                        <button type="button" onClick={() => handleApplyQuizPreset(20)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">20</button>
                                     </div>
                                 </div>
 
