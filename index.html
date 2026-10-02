@@ -14,7 +14,7 @@
     <!-- Google Font: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -25,7 +25,7 @@
 
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', sans-serif;
             background-color: #f8fafc;
             color: #0f172a;
         }
@@ -44,6 +44,114 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* ===== RUANG KELASKU — CERIA & COLORFUL THEME ===== */
+        :root {
+            --rk-blue: #5B8DEF;
+            --rk-blue-dark: #4777D8;
+            --rk-yellow: #FFD166;
+            --rk-coral: #FF8A7A;
+            --rk-green: #67C587;
+            --rk-purple: #9B8AFB;
+            --rk-pink: #F38BA8;
+            --rk-cream: #FFFDF7;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 8% 8%, rgba(255,209,102,.18), transparent 24%),
+                radial-gradient(circle at 92% 14%, rgba(155,138,251,.14), transparent 25%),
+                radial-gradient(circle at 85% 88%, rgba(103,197,135,.12), transparent 24%),
+                #f8fafc;
+        }
+
+        /* Kartu dibuat sedikit lebih playful */
+        .rounded-2xl { border-radius: 1.15rem !important; }
+        .rounded-3xl { border-radius: 1.5rem !important; }
+
+        /* Hover kartu */
+        .shadow-sm {
+            box-shadow: 0 4px 14px rgba(91,141,239,.07) !important;
+        }
+
+        /* Tombol primary */
+        button.bg-sky-500 {
+            background: linear-gradient(135deg, #5B8DEF, #6C7FF2) !important;
+        }
+        button.bg-sky-500:hover {
+            background: linear-gradient(135deg, #4777D8, #5B6FE0) !important;
+        }
+
+        /* Ikon/aksen biru */
+        .text-sky-500, .text-sky-600 { color: #5B8DEF !important; }
+        .bg-sky-50 { background-color: #EEF4FF !important; }
+        .border-sky-100 { border-color: #DCE8FF !important; }
+
+        /* Beberapa aksen dibuat lebih ceria */
+        .bg-emerald-500 {
+            background: linear-gradient(135deg, #67C587, #48B978) !important;
+        }
+        .bg-amber-500 {
+            background: linear-gradient(135deg, #FFD166, #F5B942) !important;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar-thumb {
+            background: #B9C9EE;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8FA8E5;
+        }
+
+        /* Login page */
+        .min-h-screen.bg-slate-100 {
+            background:
+                radial-gradient(circle at 10% 20%, rgba(255,209,102,.28), transparent 22%),
+                radial-gradient(circle at 90% 15%, rgba(155,138,251,.22), transparent 24%),
+                radial-gradient(circle at 85% 85%, rgba(103,197,135,.20), transparent 25%),
+                #F8FAFF !important;
+        }
+
+        /* Logo */
+        .bg-gradient-to-tr.from-sky-500.to-blue-600 {
+            background: linear-gradient(135deg, #5B8DEF, #8B7CF6) !important;
+        }
+
+        /* Banner dashboard */
+        .bg-gradient-to-r.from-sky-500.to-blue-600 {
+            background:
+                radial-gradient(circle at 85% 20%, rgba(255,209,102,.35), transparent 20%),
+                linear-gradient(135deg, #5B8DEF 0%, #6978EE 55%, #8B7CF6 100%) !important;
+        }
+
+        /* Header mobile */
+        .md\:hidden.fixed.top-0 {
+            background: rgba(255,255,255,.94) !important;
+            backdrop-filter: blur(12px);
+        }
+
+        /* Sidebar aktif */
+        aside button.bg-sky-50 {
+            background: linear-gradient(90deg, #EEF4FF, #F2F0FF) !important;
+            border-color: #DCE8FF !important;
+        }
+
+        /* Input focus lebih lembut */
+        input:focus, textarea:focus, select:focus {
+            box-shadow: 0 0 0 3px rgba(91,141,239,.12);
+        }
+
+        /* Judul halaman lebih ramah */
+        h1, h2, h3 {
+            letter-spacing: -0.015em;
+        }
+
+        /* Badge mata pelajaran */
+        span.bg-sky-50.text-sky-600 {
+            background: #EEF4FF !important;
+            color: #4777D8 !important;
+        }
+
     </style>
 </head>
 <body class="antialiased selection:bg-sky-500 selection:text-white">
