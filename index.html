@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruang Kelasku - Platform Pembelajaran Interaktif</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel Standalone (Latest supporting ES2020+) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-sky-500 selection:text-white">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Key untuk LocalStorage
+        const STORAGE_KEY = 'ruang_kelasku_v2_db';
+
+        // Helper untuk ID unik
+        const generateId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+
+        // Data Awal Aplikasi
+        const DEFAULT_DATA = {
+            profile: {
+                teacherName: "Bu Guru Rahmawati, S.Pd.",
+                className: "Kelas VI-A",
+                school: "SD Negeri 30 Lahat",
+                year: "2026/2027"
+            },
+            students: [
+                { id: "s1", name: "Ahmad Zaki", username: "ahmad06", password: "123", status: "aktif" },
+                { id: "s2", name: "Budi Santoso", username: "budi06", password: "123", status: "aktif" },
+                { id: "s3", name: "Citra Kirana", username: "citra06", password: "123", status: "aktif" },
+                { id: "s4", name: "Dina Olivia", username: "dina06", password: "123", status: "aktif" }
+            ],
+            materials: [
+                {
+                    id: "m1",
+                    subject: "IPAS",
+                    title: "Sistem Pernapasan Manusia",
+                    meeting: "Pertemuan 1",
+                    description: "Mengenal organ-organ pernapasan pada manusia dan fungsinya secara detail.",
+                    content: "Organ pernapasan manusia terdiri dari hidung, faring, laring, trakea, bronkus, bronkiolus, dan paru-paru (alveolus).\n\nFungsi utama organ pernapasan adalah tempat pertukaran gas oksigen (O2) dan karbon dioksida (CO2) yang sangat penting bagi kehidupan manusia.",
+                    attachmentName: "Ringkasan_Pernapasan.pdf",
+                    attachmentType: "pdf",
+                    attachmentData: null,
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: "m2",
+                    subject: "Matematika",
+                    title: "Pecahan Campuran & Desimal",
+                    meeting: "Pertemuan 2",
+                    description: "Operasi hitung penjumlahan dan pengurangan pecahan campuran.",
+                    content: "Untuk menjumlahkan pecahan campuran, samakan terlebih dahulu penyebutnya atau ubah pecahan campuran menjadi pecahan biasa.",
+                    attachmentName: null,
+                    attachmentType: null,
+                    attachmentData: null,
+                    createdAt: new Date().toISOString()
+                }
+            ],
+            quizzes: [
+                {
+                    id: "q1",
+                    subject: "IPAS",
+                    title: "Quiz Sistem Pernapasan",
+                    instructions: "Kerjakan soal-soal pilihan ganda berikut dengan teliti dan tepat!",
+                    questionCount: 2,
+                    timeLimit: 10,
+                    startDate: new Date().toISOString(),
+                    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                    status: "aktif",
+                    questions: [
+                        {
+                            id: "q1_1",
+                            text: "Apa fungsi utama alveolus pada paru-paru manusia?",
+                            options: { A: "Memompa darah ke seluruh tubuh", B: "Tempat pertukaran gas oksigen dan karbon dioksida", C: "Menyaring udara dari debu kasar", D: "Menghasilkan pita suara" },
+                            correct: "B",
+                            explanation: "Alveolus adalah gelembung halus tempat terjadinya pertukaran O2 dan CO2 di paru-paru."
+                        },
+                        {
+                            id: "q1_2",
+                            text: "Rambut halus di dalam rongga hidung berfungsi untuk...",
+                            options: { A: "Menghangatkan udara dingin", B: "Melembapkan udara luar", C: "Menyaring debu dan kotoran udara", D: "Mencium bau masakan" },
+                            correct: "C",
+                            explanation: "Rambut hidung berguna untuk menyaring partikel debu dan kotoran yang masuk bersama udara."
+                        }
+                    ]
+                }
+            ],
+            announcements: [
+                {
+                    id: "a1",
+                    title: "Selamat Datang di Semester Baru!",
+                    content: "Mari bersiap menyambut pembelajaran dengan penuh semangat. Pastikan selalu memeriksa materi pelajaran terbaru di platform Ruang Kelasku.",
+                    startDate: new Date().toISOString(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    link: "https://sdn30lahat.sch.id",
+                    status: "aktif"
+                }
+            ],
+            grades: [
+                { id: "g1", studentId: "s1", studentName: "Ahmad Zaki", quizId: "q1", quizTitle: "Quiz Sistem Pernapasan", subject: "IPAS", score: 100, date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
+                { id: "g2", studentId: "s2", studentName: "Budi Santoso", quizId: "q1", quizTitle: "Quiz Sistem Pernapasan", subject: "IPAS", score: 50, date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() }
+            ]
+        };
+
+        const Card = ({ children, className = '', onClick = null }) => (
+            <div onClick={onClick} className={`bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all ${className}`}>
+                {children}
+            </div>
+        );
+
+        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+            const variants = {
+                primary: 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200',
+                secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200',
+                danger: 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200',
+                success: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200',
+                outline: 'border border-sky-500 text-sky-600 hover:bg-sky-50',
+                ghost: 'text-slate-500 hover:bg-slate-100'
+            };
+            return (
+                <button 
+                    {...props} 
+                    className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant] || variants.primary} ${className}`}
+                >
+                    {children}
+                </button>
+            );
+        };
+
+        const Badge = ({ children, variant = 'blue' }) => {
+            const styles = {
+                blue: 'bg-sky-50 text-sky-600 border-sky-100',
+                green: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+                yellow: 'bg-amber-50 text-amber-600 border-amber-100',
+                red: 'bg-rose-50 text-rose-600 border-rose-100',
+                gray: 'bg-slate-100 text-slate-600 border-slate-200'
+            };
+            return (
+                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold border ${styles[variant] || styles.blue} inline-block`}>
+                    {children}
+                </span>
+            );
+        };
+
+        const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-2xl' }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className={`bg-white rounded-3xl w-full ${maxWidth} max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100`}>
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">{title}</h3>
+                            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                                <i className="ph-bold ph-x"></i>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Toast = ({ message, onClose }) => {
+            if (!message) return null;
+            return (
+                <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce border border-slate-700 text-xs font-semibold">
+                    <i className="ph-fill ph-check-circle text-emerald-400 text-lg"></i>
+                    <span>{message}</span>
+                    <button onClick={onClose} className="ml-2 text-slate-400 hover:text-white">
+                        <i className="ph-bold ph-x"></i>
+                    </button>
+                </div>
+            );
+        };
+
+        const LoginPage = ({ onLogin, db, showToast }) => {
+            const [role, setRole] = useState('student');
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setError('');
+
+                if (role === 'teacher') {
+                    if ((username.trim().toLowerCase() === 'guru' || username.trim() !== '') && password === '123') {
+                        onLogin({
+                            role: 'teacher',
+                            name: db.profile.teacherName,
+                            username: username
+                        });
+                        showToast(`Selamat datang, ${db.profile.teacherName}!`);
+                    } else {
+                        setError('Username atau Password Guru salah! (Default: username: guru, pass: 123)');
+                    }
+                } else {
+                    const foundStudent = db.students.find(
+                        s => s.username.toLowerCase() === username.trim().toLowerCase() && s.password === password
+                    );
+                    if (foundStudent) {
+                        onLogin({
+                            role: 'student',
+                            id: foundStudent.id,
+                            name: foundStudent.name,
+                            username: foundStudent.username
+                        });
+                        showToast(`Selamat datang, ${foundStudent.name}!`);
+                    } else {
+                        setError('Username/Password Siswa tidak cocok! (Contoh: ahmad06 / 123)');
+                    }
+                }
+            };
+
+            const quickLoginTeacher = () => {
+                onLogin({ role: 'teacher', name: db.profile.teacherName, username: 'guru' });
+                showToast(`Login sebagai Guru: ${db.profile.teacherName}`);
+            };
+
+            const quickLoginStudent = (student) => {
+                onLogin({ role: 'student', id: student.id, name: student.name, username: student.username });
+                showToast(`Login sebagai Siswa: ${student.name}`);
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 space-y-6">
+                        <div className="text-center space-y-2">
+                            <div className="w-14 h-14 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black mx-auto shadow-lg shadow-sky-200">
+                                RK
+                            </div>
+                            <h1 className="text-2xl font-black text-slate-800">Ruang Kelasku</h1>
+                            <p className="text-xs text-slate-400 font-semibold">{db.profile.className} • {db.profile.school}</p>
+                        </div>
+
+                        <div className="bg-slate-100 p-1.5 rounded-2xl grid grid-cols-2 gap-1">
+                            <button
+                                type="button"
+                                onClick={() => { setRole('student'); setError(''); }}
+                                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${role === 'student' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <i className="ph-bold ph-student"></i>
+                                <span>Siswa</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setRole('teacher'); setError(''); }}
+                                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${role === 'teacher' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <i className="ph-bold ph-chalkboard-teacher"></i>
+                                <span>Guru</span>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {error && (
+                                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-xs font-medium flex items-center gap-2">
+                                    <i className="ph-bold ph-warning-circle text-base shrink-0"></i>
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                    Username {role === 'teacher' ? 'Guru' : 'Siswa'}
+                                </label>
+                                <div className="relative">
+                                    <i className="ph-bold ph-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder={role === 'teacher' ? 'Masukkan username (cth: guru)' : 'Masukkan username (cth: ahmad06)'}
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-slate-50/50 focus:bg-white transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                    Kata Sandi (Password)
+                                </label>
+                                <div className="relative">
+                                    <i className="ph-bold ph-lock-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                    <input
+                                        type="password"
+                                        required
+                                        placeholder="Masukkan password (default: 123)"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-slate-50/50 focus:bg-white transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <Button type="submit" className="w-full py-3 text-xs font-bold mt-2">
+                                Masuk Ke Ruang Kelasku <i className="ph-bold ph-sign-in"></i>
+                            </Button>
+                        </form>
+
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center">Akses Cepat (Tanpa Ketik):</p>
+                            <div className="flex flex-col gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={quickLoginTeacher}
+                                    className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center justify-between border border-sky-100 transition-colors"
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <i className="ph-bold ph-user-gear text-sky-500"></i>
+                                        Masuk sebagai Guru ({db.profile.teacherName})
+                                    </span>
+                                    <i className="ph-bold ph-arrow-right shrink-0"></i>
+                                </button>
+                                {db.students.slice(0, 2).map((st) => (
+                                    <button
+                                        key={st.id}
+                                        type="button"
+                                        onClick={() => quickLoginStudent(st)}
+                                        className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-between border border-slate-100 transition-colors"
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <i className="ph-bold ph-user-circle text-slate-400"></i>
+                                            Masuk sebagai Siswa ({st.name})
+                                        </span>
+                                        <i className="ph-bold ph-arrow-right shrink-0"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AppLayout = ({ user, setUser, currentView, setCurrentView, profile, onLogout, children }) => {
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+            const teacherMenu = [
+                { id: 'dashboard', label: 'Beranda', icon: 'ph-fill ph-house' },
+                { id: 'materials', label: 'Materi Pelajaran', icon: 'ph-fill ph-books' },
+                { id: 'quiz', label: 'Quiz & Evaluasi', icon: 'ph-fill ph-pencil-simple' },
+                { id: 'reports', label: 'Laporan Nilai', icon: 'ph-fill ph-chart-line-up' },
+                { id: 'announcements', label: 'Pengumuman', icon: 'ph-fill ph-megaphone' },
+                { id: 'students', label: 'Data Siswa', icon: 'ph-fill ph-users' },
+                { id: 'profile', label: 'Pengaturan Profil', icon: 'ph-fill ph-gear' },
+            ];
+
+            const studentMenu = [
+                { id: 'dashboard', label: 'Beranda', icon: 'ph-fill ph-house' },
+                { id: 'materials', label: 'Materi Pelajaran', icon: 'ph-fill ph-books' },
+                { id: 'quiz', label: 'Quiz & Evaluasi', icon: 'ph-fill ph-pencil-simple' },
+                { id: 'announcements', label: 'Pengumuman', icon: 'ph-fill ph-megaphone' },
+            ];
+
+            const navItems = user.role === 'teacher' ? teacherMenu : studentMenu;
+
+            return (
+                <div className="min-h-screen flex bg-slate-50">
+                    {/* Sidebar Desktop */}
+                    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-100 p-5 fixed h-full z-20">
+                        <div className="flex items-center gap-3 px-2 py-3 mb-6">
+                            <div className="w-10 h-10 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-sky-200 font-black">
+                                RK
+                            </div>
+                            <div>
+                                <h1 className="font-black text-slate-800 text-base leading-tight">Ruang Kelasku</h1>
+                                <p className="text-[11px] font-semibold text-slate-400">{profile.className} • {profile.school}</p>
+                            </div>
+                        </div>
+
+                        <nav className="space-y-1.5 flex-1">
+                            {navItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setCurrentView(item.id)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${currentView === item.id ? 'bg-sky-50 text-sky-600 shadow-sm border border-sky-100' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
+                                >
+                                    <i className={`${item.icon} text-lg ${currentView === item.id ? 'text-sky-500' : 'text-slate-400'}`}></i>
+                                    <span>{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+
+                        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                    {user.name.charAt(0)}
+                                </div>
+                                <div className="truncate">
+                                    <p className="text-xs font-bold text-slate-800 truncate">{user.name}</p>
+                                    <span className="text-[10px] font-semibold text-sky-600 capitalize bg-sky-50 px-2 py-0.5 rounded-md inline-block">{user.role === 'teacher' ? 'Guru Kelas' : 'Siswa'}</span>
+                                </div>
+                            </div>
+                            <button onClick={onLogout} title="Keluar / Logout" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+                                <i className="ph-bold ph-sign-out text-lg"></i>
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* Mobile Header */}
+                    <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-100 px-4 py-3 z-30 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center text-white text-sm font-black">RK</div>
+                            <span className="font-bold text-slate-800 text-sm">Ruang Kelasku</span>
+                        </div>
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600">
+                            <i className="ph-bold ph-list text-2xl"></i>
+                        </button>
+                    </div>
+
+                    {/* Mobile Menu Drawer */}
+                    {isMobileMenuOpen && (
+                        <div className="md:hidden fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
+                            <div className="bg-white w-64 h-full p-5 flex flex-col justify-between" onClick={e => e.stopPropagation()}>
+                                <div>
+                                    <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
+                                        <span className="font-bold text-slate-800 text-sm">Menu Ruang Kelasku</span>
+                                        <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-400"><i className="ph-bold ph-x text-xl"></i></button>
+                                    </div>
+                                    <nav className="space-y-2">
+                                        {navItems.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => { setCurrentView(item.id); setIsMobileMenuOpen(false); }}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold ${currentView === item.id ? 'bg-sky-50 text-sky-600' : 'text-slate-600'}`}
+                                            >
+                                                <i className={`${item.icon} text-lg`}></i>
+                                                <span>{item.label}</span>
+                                            </button>
+                                        ))}
+                                    </nav>
+                                </div>
+                                <div className="space-y-3 pt-4 border-t border-slate-100">
+                                    <button onClick={onLogout} className="w-full py-2.5 px-3 text-xs font-bold text-rose-600 bg-rose-50 rounded-xl border border-rose-100 flex items-center justify-center gap-2">
+                                        <i className="ph-bold ph-sign-out text-base"></i> Keluar (Logout)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="flex-1 md:ml-64 p-4 md:p-8 pt-20 md:pt-8 max-w-6xl mx-auto w-full">
+                        {children}
+                    </main>
+                </div>
+            );
+        };
+
+        const AssessmentRunner = ({ assessment, onCancel, onComplete, showToast }) => {
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [answers, setAnswers] = useState({});
+            const [timeLeft, setTimeLeft] = useState((assessment.timeLimit || 10) * 60);
+            const [isFinished, setIsFinished] = useState(false);
+            const [calculatedScore, setCalculatedScore] = useState(0);
+
+            const questions = assessment.questions || [];
+
+            useEffect(() => {
+                if (isFinished || timeLeft <= 0) return;
+                const timer = setInterval(() => {
+                    setTimeLeft(prev => {
+                        if (prev <= 1) {
+                            clearInterval(timer);
+                            handleSubmit();
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+                return () => clearInterval(timer);
+            }, [timeLeft, isFinished]);
+
+            const handleOptionSelect = (optionKey) => {
+                if (isFinished) return;
+                setAnswers(prev => ({
+                    ...prev,
+                    [questions[currentIndex].id]: optionKey
+                }));
+            };
+
+            const handleSubmit = () => {
+                let correctCount = 0;
+                questions.forEach(q => {
+                    if (answers[q.id] === q.correct) {
+                        correctCount++;
+                    }
+                });
+
+                const score = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
+                setCalculatedScore(score);
+                setIsFinished(true);
+                onComplete(score);
+                showToast("Jawaban kuis berhasil dikumpulkan!");
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            };
+
+            if (questions.length === 0) {
+                return (
+                    <Card className="text-center py-12">
+                        <i className="ph-duotone ph-warning-circle text-5xl text-amber-500 mb-3"></i>
+                        <h3 className="font-bold text-slate-800 text-base">Soal Kuis Belum Tersedia</h3>
+                        <p className="text-slate-500 text-xs mt-1 mb-4">Guru belum merilis butir soal untuk kuis ini.</p>
+                        <Button variant="secondary" onClick={onCancel} className="mx-auto">Kembali</Button>
+                    </Card>
+                );
+            }
+
+            if (isFinished) {
+                return (
+                    <div className="max-w-2xl mx-auto space-y-6">
+                        <Card className="text-center py-8 bg-white border border-slate-100 shadow-xl">
+                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                                <i className="ph-bold ph-trophy"></i>
+                            </div>
+                            <h2 className="text-xl font-black text-slate-800">Kuis Selesai!</h2>
+                            <p className="text-xs text-slate-500 mt-1">{assessment.title} • {assessment.subject}</p>
+                            
+                            <div className="my-6 inline-block bg-slate-50 px-8 py-4 rounded-3xl border border-slate-100">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nilai Kamu</p>
+                                <p className="text-5xl font-black text-sky-600 mt-1">{calculatedScore}</p>
+                            </div>
+
+                            <p className="text-xs font-semibold text-slate-600 max-w-sm mx-auto">
+                                {calculatedScore >= 70 ? "Luar biasa! Hasil kerja kamu sangat memuaskan." : "Tetap semangat! Tingkatkan lagi belajarnya ya."}
+                            </p>
+
+                            <div className="mt-8 flex justify-center gap-3">
+                                <Button variant="primary" onClick={onCancel}>Selesai & Kembali</Button>
+                            </div>
+                        </Card>
+                    </div>
+                );
+            }
+
+            const currentQ = questions[currentIndex];
+
+            return (
+                <div className="max-w-3xl mx-auto space-y-4">
+                    <Card className="flex items-center justify-between p-4 bg-white border-slate-100 shadow-sm">
+                        <div>
+                            <span className="text-[11px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-lg">{assessment.subject}</span>
+                            <h2 className="font-bold text-slate-800 text-sm mt-1">{assessment.title}</h2>
+                        </div>
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl font-bold text-xs">
+                            <i className="ph-bold ph-clock"></i>
+                            <span>Sisa Waktu: {formatTime(timeLeft)}</span>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6">
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                            <span className="text-xs font-bold text-slate-400 uppercase">Soal {currentIndex + 1} dari {questions.length}</span>
+                            <div className="flex gap-1">
+                                {questions.map((_, idx) => (
+                                    <button 
+                                        key={idx} 
+                                        onClick={() => setCurrentIndex(idx)}
+                                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${currentIndex === idx ? 'bg-sky-500 text-white' : answers[questions[idx].id] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                                    >
+                                        {idx + 1}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <p className="text-sm font-bold text-slate-800 leading-relaxed mb-6">{currentQ.text}</p>
+
+                        <div className="space-y-2.5">
+                            {Object.entries(currentQ.options || {}).map(([key, optText]) => {
+                                const isSelected = answers[currentQ.id] === key;
+                                return (
+                                    <button
+                                        key={key}
+                                        onClick={() => handleOptionSelect(key)}
+                                        className={`w-full text-left p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-3 transition-all ${isSelected ? 'bg-sky-50 border-sky-400 text-sky-800 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'}`}
+                                    >
+                                        <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${isSelected ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                            {key}
+                                        </div>
+                                        <span className="flex-1">{optText}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
+                            <Button 
+                                variant="secondary" 
+                                disabled={currentIndex === 0} 
+                                onClick={() => setCurrentIndex(prev => prev - 1)}
+                            >
+                                <i className="ph-bold ph-arrow-left"></i> Sebelum
+                            </Button>
+
+                            {currentIndex === questions.length - 1 ? (
+                                <Button variant="success" onClick={handleSubmit}>
+                                    Kumpulkan Jawaban <i className="ph-bold ph-check-circle"></i>
+                                </Button>
+                            ) : (
+                                <Button variant="primary" onClick={() => setCurrentIndex(prev => prev + 1)}>
+                                    Selanjutnya <i className="ph-bold ph-arrow-right"></i>
+                                </Button>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+            );
+        };
+
+        const RuangKelaskuApp = () => {
+            const [db, setDb] = useState(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try { return JSON.parse(saved); } catch (e) { console.error(e); }
+                }
+                return DEFAULT_DATA;
+            });
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+            }, [db]);
+
+            const [user, setUser] = useState(null);
+            const [currentView, setCurrentView] = useState('dashboard');
+            const [toastMessage, setToastMessage] = useState(null);
+
+            const [activeAssessment, setActiveAssessment] = useState(null);
+            const [selectedMaterial, setSelectedMaterial] = useState(null);
+
+            const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+            const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+            const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+            const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+            const [previewQuiz, setPreviewQuiz] = useState(null);
+
+            const [profileForm, setProfileForm] = useState({ ...db.profile });
+            const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', startDate: '', endDate: '', link: '' });
+            const [materialForm, setMaterialForm] = useState({ id: null, subject: 'IPAS', title: '', meeting: 'Pertemuan 1', description: '', content: '', attachmentName: '', attachmentType: '', attachmentData: null });
+            const [studentForm, setStudentForm] = useState({ name: '', username: '', password: '123' });
+
+            useEffect(() => {
+                if (db.profile) {
+                    setProfileForm({ ...db.profile });
+                }
+            }, [currentView, db.profile]);
+            
+            const [quizForm, setQuizForm] = useState({
+                title: '',
+                subject: 'IPAS',
+                instructions: 'Kerjakan soal pilihan ganda dengan benar.',
+                timeLimit: 10,
+                endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                questions: [
+                    { id: 'q_1', text: '', options: { A: '', B: '', C: '', D: '' }, correct: 'A', explanation: '' }
+                ]
+            });
+
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(null), 3000);
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setCurrentView('dashboard');
+                showToast("Anda telah keluar dari akun.");
+            };
+
+            const handleSaveProfile = (e) => {
+                e.preventDefault();
+                const updatedProfile = { ...profileForm };
+                
+                // Simpan ke database local storage
+                setDb(prev => ({ ...prev, profile: updatedProfile }));
+
+                // Perbarui nama user aktif di sesi jika role adalah guru
+                if (user && user.role === 'teacher') {
+                    setUser(prev => ({ ...prev, name: updatedProfile.teacherName }));
+                }
+
+                showToast("Profil guru & kelas berhasil diperbarui!");
+            };
+
+            const handleSaveAnnouncement = (e) => {
+                e.preventDefault();
+                const newA = {
+                    id: generateId(),
+                    title: announcementForm.title,
+                    content: announcementForm.content,
+                    startDate: new Date().toISOString(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    link: announcementForm.link,
+                    status: 'aktif'
+                };
+                setDb(prev => ({ ...prev, announcements: [newA, ...prev.announcements] }));
+                setIsAnnouncementModalOpen(false);
+                setAnnouncementForm({ title: '', content: '', startDate: '', endDate: '', link: '' });
+                showToast("Pengumuman berhasil diterbitkan!");
+            };
+
+            const handleDeleteAnnouncement = (id) => {
+                setDb(prev => ({ ...prev, announcements: prev.announcements.filter(a => a.id !== id) }));
+                showToast("Pengumuman berhasil dihapus!");
+            };
+
+            const handleCopyLink = (text) => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast("Tautan/Teks berhasil disalin!");
+            };
+
+            const handleSaveMaterial = (e) => {
+                e.preventDefault();
+                if (materialForm.id) {
+                    setDb(prev => ({
+                        ...prev,
+                        materials: prev.materials.map(m => m.id === materialForm.id ? { ...materialForm } : m)
+                    }));
+                    showToast("Materi pelajaran diperbarui!");
+                } else {
+                    const newM = {
+                        ...materialForm,
+                        id: generateId(),
+                        createdAt: new Date().toISOString()
+                    };
+                    setDb(prev => ({ ...prev, materials: [newM, ...prev.materials] }));
+                    showToast("Materi pelajaran baru berhasil ditambahkan!");
+                }
+                setIsMaterialModalOpen(false);
+                setMaterialForm({ id: null, subject: 'IPAS', title: '', meeting: 'Pertemuan 1', description: '', content: '', attachmentName: '', attachmentType: '', attachmentData: null });
+            };
+
+            const handleDeleteMaterial = (id) => {
+                setDb(prev => ({ ...prev, materials: prev.materials.filter(m => m.id !== id) }));
+                showToast("Materi berhasil dihapus!");
+            };
+
+            const handleMaterialFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const isPdf = file.type === 'application/pdf';
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    setMaterialForm(prev => ({
+                        ...prev,
+                        attachmentName: file.name,
+                        attachmentType: isPdf ? 'pdf' : 'image',
+                        attachmentData: event.target.result
+                    }));
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const handleApplyQuizPreset = (count) => {
+                const newQuestions = [];
+                for (let i = 0; i < count; i++) {
+                    newQuestions.push({
+                        id: 'q_' + (i + 1),
+                        text: `Pertanyaan Soal No ${i + 1}`,
+                        options: { A: 'Pilihan A', B: 'Pilihan B', C: 'Pilihan C', D: 'Pilihan D' },
+                        correct: 'A',
+                        explanation: ''
+                    });
+                }
+                setQuizForm(prev => ({ ...prev, questions: newQuestions }));
+            };
+
+            const handleSaveQuiz = (e) => {
+                e.preventDefault();
+                const newQ = {
+                    id: generateId(),
+                    subject: quizForm.subject,
+                    title: quizForm.title,
+                    instructions: quizForm.instructions,
+                    questionCount: quizForm.questions.length,
+                    timeLimit: parseInt(quizForm.timeLimit) || 10,
+                    endDate: new Date(quizForm.endDate).toISOString(),
+                    status: 'aktif',
+                    questions: quizForm.questions
+                };
+                setDb(prev => ({ ...prev, quizzes: [newQ, ...prev.quizzes] }));
+                setIsQuizModalOpen(false);
+                showToast("Kuis baru berhasil diterbitkan!");
+            };
+
+            const handleDeleteQuiz = (id) => {
+                setDb(prev => ({ ...prev, quizzes: prev.quizzes.filter(q => q.id !== id) }));
+                showToast("Kuis berhasil dihapus!");
+            };
+
+            const handleSaveStudent = (e) => {
+                e.preventDefault();
+                const newS = {
+                    id: generateId(),
+                    name: studentForm.name,
+                    username: studentForm.username,
+                    password: studentForm.password || '123',
+                    status: 'aktif'
+                };
+                setDb(prev => ({ ...prev, students: [...prev.students, newS] }));
+                setIsStudentModalOpen(false);
+                setStudentForm({ name: '', username: '', password: '123' });
+                showToast("Data siswa berhasil ditambahkan!");
+            };
+
+            if (!user) {
+                return <LoginPage onLogin={(userData) => setUser(userData)} db={db} showToast={showToast} />;
+            }
+
+            if (activeAssessment) {
+                return (
+                    <AssessmentRunner 
+                        assessment={activeAssessment} 
+                        onCancel={() => setActiveAssessment(null)}
+                        onComplete={(score) => {
+                            if (user.role === 'student') {
+                                setDb(prev => ({
+                                    ...prev,
+                                    grades: [
+                                        {
+                                            id: generateId(),
+                                            studentId: user.id,
+                                            studentName: user.name,
+                                            quizId: activeAssessment.id,
+                                            quizTitle: activeAssessment.title,
+                                            subject: activeAssessment.subject || "Pelajaran",
+                                            score,
+                                            date: new Date().toISOString()
+                                        },
+                                        ...prev.grades
+                                    ]
+                                }));
+                            }
+                        }}
+                        showToast={showToast}
+                    />
+                );
+            }
+
+            return (
+                <AppLayout user={user} setUser={setUser} currentView={currentView} setCurrentView={setCurrentView} profile={db.profile} onLogout={handleLogout}>
+                    {/* View: Dashboard */}
+                    {currentView === 'dashboard' && (
+                        <div className="space-y-6">
+                            {/* Welcome Banner */}
+                            <div className="bg-gradient-to-r from-sky-500 to-blue-600 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-sky-100 relative overflow-hidden">
+                                <div className="relative z-10 space-y-2">
+                                    <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                                        {db.profile.className} • {db.profile.school}
+                                    </span>
+                                    <h1 className="text-2xl md:text-3xl font-black">
+                                        Selamat Datang, {user.name}! 👋
+                                    </h1>
+                                    <p className="text-xs md:text-sm text-sky-100 max-w-xl font-medium">
+                                        {user.role === 'teacher' 
+                                            ? "Kelola materi pelajaran, buat kuis interaktif, dan pantau hasil nilai belajar siswa Anda." 
+                                            : "Ayo pelajari materi terbaru dan kerjakan kuis evaluasi untuk mengasah pengetahuanmu hari ini."}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Stats Summary Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <Card className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-sky-50 text-sky-500 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                                        <i className="ph-fill ph-books"></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-400">Total Materi</p>
+                                        <h3 className="text-xl font-black text-slate-800">{db.materials.length}</h3>
+                                    </div>
+                                </Card>
+                                <Card className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                                        <i className="ph-fill ph-pencil-simple"></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-400">Kuis Aktif</p>
+                                        <h3 className="text-xl font-black text-slate-800">{db.quizzes.length}</h3>
+                                    </div>
+                                </Card>
+                                <Card className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                                        <i className="ph-fill ph-users"></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-400">Siswa Terdaftar</p>
+                                        <h3 className="text-xl font-black text-slate-800">{db.students.length}</h3>
+                                    </div>
+                                </Card>
+                                <Card className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                                        <i className="ph-fill ph-trophy"></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-slate-400">Tugas Selesai</p>
+                                        <h3 className="text-xl font-black text-slate-800">{db.grades.length}</h3>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* Dashboard Content split */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Left Section: Materi Terbaru */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                            <i className="ph-bold ph-books text-sky-500"></i> Materi Pelajaran Terbaru
+                                        </h2>
+                                        <button onClick={() => setCurrentView('materials')} className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1">
+                                            Lihat Semua <i className="ph-bold ph-caret-right"></i>
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {db.materials.slice(0, 3).map(m => (
+                                            <Card 
+                                                key={m.id} 
+                                                onClick={() => setSelectedMaterial(m)}
+                                                className="cursor-pointer hover:bg-sky-50/50 group border border-slate-100"
+                                            >
+                                                <div className="flex justify-between items-center gap-3">
+                                                    <div className="space-y-1 flex-1">
+                                                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{m.subject}</span>
+                                                        <h3 className="font-bold text-slate-800 text-sm group-hover:text-sky-600 transition-colors flex items-center gap-2">
+                                                            {m.title}
+                                                            <i className="ph-bold ph-arrow-up-right text-xs opacity-0 group-hover:opacity-100 transition-opacity text-sky-500"></i>
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500 line-clamp-2">{m.description}</p>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-2 shrink-0">
+                                                        <span className="text-[11px] font-semibold text-slate-400">{m.meeting}</span>
+                                                        <Button variant="outline" className="py-1 px-3 text-[11px] rounded-lg">
+                                                            <i className="ph-bold ph-book-open"></i> Baca
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+
+                                    {/* Report Summary in Dashboard Guru */}
+                                    {user.role === 'teacher' && (
+                                        <div className="space-y-4 pt-4">
+                                            <div className="flex items-center justify-between">
+                                                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                                    <i className="ph-bold ph-chart-line-up text-emerald-500"></i> Laporan Pengerjaan Kuis Terbaru
+                                                </h2>
+                                                <button onClick={() => setCurrentView('reports')} className="text-xs font-bold text-sky-600 hover:text-sky-700">
+                                                    Buka Laporan
+                                                </button>
+                                            </div>
+                                            <Card>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left text-xs">
+                                                        <thead>
+                                                            <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-bold">
+                                                                <th className="pb-3">Siswa</th>
+                                                                <th className="pb-3">Identitas Tugas / Kuis</th>
+                                                                <th className="pb-3 text-center">Nilai</th>
+                                                                <th className="pb-3 text-right">Tanggal</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-50">
+                                                            {db.grades.slice(0, 4).map(g => (
+                                                                <tr key={g.id} className="hover:bg-slate-50/50">
+                                                                    <td className="py-2.5 font-bold text-slate-700">{g.studentName}</td>
+                                                                    <td className="py-2.5">
+                                                                        <span className="font-bold text-slate-800 block">{g.quizTitle}</span>
+                                                                        <span className="text-[10px] font-semibold text-sky-600">{g.subject}</span>
+                                                                    </td>
+                                                                    <td className="py-2.5 text-center">
+                                                                        <span className={`px-2.5 py-1 rounded-lg font-black text-xs ${g.score >= 70 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                                            {g.score}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-2.5 text-right text-[11px] text-slate-400">
+                                                                        {new Date(g.date).toLocaleDateString('id-ID')}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </Card>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Section: Announcements Sidebar */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                            <i className="ph-bold ph-megaphone text-amber-500"></i> Pengumuman Kelas
+                                        </h2>
+                                        {user.role === 'teacher' && (
+                                            <button onClick={() => setIsAnnouncementModalOpen(true)} className="text-xs font-bold text-sky-600 hover:text-sky-700">
+                                                + Buat
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {db.announcements.map(a => (
+                                            <Card key={a.id} className="p-4 space-y-2 border-l-4 border-l-sky-500">
+                                                <div className="flex justify-between items-start">
+                                                    <h3 className="font-bold text-slate-800 text-xs">{a.title}</h3>
+                                                    {user.role === 'teacher' && (
+                                                        <button 
+                                                            onClick={() => handleDeleteAnnouncement(a.id)}
+                                                            className="text-slate-300 hover:text-rose-500 p-1"
+                                                            title="Hapus Pengumuman"
+                                                        >
+                                                            <i className="ph-bold ph-trash"></i>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-slate-600">{a.content}</p>
+                                                {a.link && (
+                                                    <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
+                                                        <a href={a.link} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1">
+                                                            <i className="ph-bold ph-link"></i> Buka Tautan
+                                                        </a>
+                                                        <button 
+                                                            onClick={() => handleCopyLink(a.link)} 
+                                                            className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 px-2 py-0.5 rounded"
+                                                        >
+                                                            Salin Link
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View: Materials */}
+                    {currentView === 'materials' && (
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800">Materi Pelajaran</h1>
+                                    <p className="text-xs text-slate-400 font-medium">Bahan ajar & ringkasan materi pembelajaran siswa.</p>
+                                </div>
+                                {user.role === 'teacher' && (
+                                    <Button onClick={() => {
+                                        setMaterialForm({ id: null, subject: 'IPAS', title: '', meeting: 'Pertemuan 1', description: '', content: '', attachmentName: '', attachmentType: '', attachmentData: null });
+                                        setIsMaterialModalOpen(true);
+                                    }}>
+                                        <i className="ph-bold ph-plus"></i> Tambah Materi Baru
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {db.materials.map(m => (
+                                    <Card key={m.id} className="space-y-4 flex flex-col justify-between">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <Badge variant="blue">{m.subject}</Badge>
+                                                <span className="text-xs font-bold text-slate-400">{m.meeting}</span>
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base">{m.title}</h3>
+                                            <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{m.description}</p>
+                                        </div>
+
+                                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                            <Button 
+                                                variant="primary" 
+                                                className="w-full py-2 text-xs" 
+                                                onClick={() => setSelectedMaterial(m)}
+                                            >
+                                                <i className="ph-bold ph-book-open"></i> Baca Materi
+                                            </Button>
+
+                                            {user.role === 'teacher' && (
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <Button 
+                                                        variant="secondary" 
+                                                        className="py-2 px-3 text-xs" 
+                                                        onClick={() => {
+                                                            setMaterialForm(m);
+                                                            setIsMaterialModalOpen(true);
+                                                        }}
+                                                        title="Edit Materi"
+                                                    >
+                                                        <i className="ph-bold ph-pencil-simple"></i>
+                                                    </Button>
+                                                    <Button 
+                                                        variant="danger" 
+                                                        className="py-2 px-3 text-xs"
+                                                        onClick={() => handleDeleteMaterial(m.id)}
+                                                        title="Hapus Materi"
+                                                    >
+                                                        <i className="ph-bold ph-trash"></i>
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View: Quiz & Evaluasi */}
+                    {currentView === 'quiz' && (
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800">Quiz & Evaluasi</h1>
+                                    <p className="text-xs text-slate-400 font-medium">Uji pemahaman materi dengan kuis pilihan ganda interaktif.</p>
+                                </div>
+                                {user.role === 'teacher' && (
+                                    <Button onClick={() => setIsQuizModalOpen(true)}>
+                                        <i className="ph-bold ph-plus-circle"></i> Buat Kuis Baru
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {db.quizzes.map(q => {
+                                    const studentGrade = user.role === 'student' ? db.grades.find(g => g.quizId === q.id && g.studentId === user.id) : null;
+
+                                    return (
+                                        <Card key={q.id} className="space-y-4 flex flex-col justify-between">
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <Badge variant="blue">{q.subject}</Badge>
+                                                    <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+                                                        <i className="ph-bold ph-clock"></i> {q.timeLimit} Menit
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-bold text-slate-800 text-base">{q.title}</h3>
+                                                <p className="text-xs text-slate-500">{q.instructions}</p>
+                                                
+                                                <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-500 pt-2">
+                                                    <span><i className="ph-bold ph-list-numbers text-sky-500"></i> {q.questions ? q.questions.length : q.questionCount} Soal</span>
+                                                    <span><i className="ph-bold ph-calendar text-amber-500"></i> Deadline: {new Date(q.endDate).toLocaleDateString('id-ID')}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                                {user.role === 'student' ? (
+                                                    studentGrade ? (
+                                                        <div className="flex items-center justify-between w-full">
+                                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
+                                                                <i className="ph-bold ph-check-circle"></i> Selesai (Nilai: {studentGrade.score})
+                                                            </span>
+                                                            <Button variant="secondary" onClick={() => setActiveAssessment(q)}>
+                                                                Kerjakan Ulang
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <Button variant="primary" className="w-full" onClick={() => setActiveAssessment(q)}>
+                                                            Mulai Kerjakan Kuis <i className="ph-bold ph-play"></i>
+                                                        </Button>
+                                                    )
+                                                ) : (
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <div className="flex gap-2">
+                                                            <Button variant="secondary" className="text-[11px] py-1.5" onClick={() => setPreviewQuiz(q)}>
+                                                                Detail Soal
+                                                            </Button>
+                                                            <Button variant="outline" className="text-[11px] py-1.5" onClick={() => setActiveAssessment(q)}>
+                                                                Uji Coba
+                                                            </Button>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleDeleteQuiz(q.id)}
+                                                            className="text-slate-300 hover:text-rose-500 p-1" 
+                                                            title="Hapus Kuis"
+                                                        >
+                                                            <i className="ph-bold ph-trash text-base"></i>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View: Laporan Nilai (Teacher only) */}
+                    {currentView === 'reports' && user.role === 'teacher' && (
+                        <div className="space-y-6">
+                            <div>
+                                <h1 className="text-xl font-black text-slate-800">Laporan Nilai Siswa</h1>
+                                <p className="text-xs text-slate-400 font-medium">Rekapitulasi hasil kerja kuis dan evaluasi belajar siswa.</p>
+                            </div>
+
+                            <Card>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-bold">
+                                                <th className="pb-3">Nama Siswa</th>
+                                                <th className="pb-3">Judul Tugas / Kuis</th>
+                                                <th className="pb-3">Mata Pelajaran</th>
+                                                <th className="pb-3 text-center">Nilai</th>
+                                                <th className="pb-3 text-right">Tanggal Pengerjaan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {db.grades.map(g => (
+                                                <tr key={g.id} className="hover:bg-slate-50">
+                                                    <td className="py-3 font-bold text-slate-800">{g.studentName}</td>
+                                                    <td className="py-3 font-semibold text-slate-700">{g.quizTitle}</td>
+                                                    <td className="py-3"><Badge variant="blue">{g.subject}</Badge></td>
+                                                    <td className="py-3 text-center">
+                                                        <span className={`px-2.5 py-1 rounded-xl font-black text-xs ${g.score >= 70 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                                            {g.score}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 text-right text-slate-400">
+                                                        {new Date(g.date).toLocaleString('id-ID')}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* View: Pengumuman */}
+                    {currentView === 'announcements' && (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800">Pengumuman Kelas</h1>
+                                    <p className="text-xs text-slate-400 font-medium">Papan informasi penting kelas.</p>
+                                </div>
+                                {user.role === 'teacher' && (
+                                    <Button onClick={() => setIsAnnouncementModalOpen(true)}>
+                                        <i className="ph-bold ph-plus"></i> Buat Pengumuman
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                {db.announcements.map(a => (
+                                    <Card key={a.id} className="space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="font-bold text-slate-800 text-sm">{a.title}</h3>
+                                            {user.role === 'teacher' && (
+                                                <Button variant="danger" className="py-1 px-2 text-[10px]" onClick={() => handleDeleteAnnouncement(a.id)}>
+                                                    Hapus
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-600 leading-relaxed">{a.content}</p>
+                                        {a.link && (
+                                            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                                <a href={a.link} target="_blank" rel="noreferrer" className="text-xs font-bold text-sky-600 hover:underline">
+                                                    🔗 Buka Lampiran / Tautan
+                                                </a>
+                                                <button onClick={() => handleCopyLink(a.link)} className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-semibold">
+                                                    Salin Link
+                                                </button>
+                                            </div>
+                                        )}
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View: Data Siswa (Teacher only) */}
+                    {currentView === 'students' && user.role === 'teacher' && (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800">Data Siswa</h1>
+                                    <p className="text-xs text-slate-400 font-medium">Daftar akun dan akses siswa di kelas.</p>
+                                </div>
+                                <Button onClick={() => setIsStudentModalOpen(true)}>
+                                    <i className="ph-bold ph-user-plus"></i> Tambah Siswa
+                                </Button>
+                            </div>
+
+                            <Card>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-bold">
+                                                <th className="pb-3">Nama Siswa</th>
+                                                <th className="pb-3">Username</th>
+                                                <th className="pb-3">Password</th>
+                                                <th className="pb-3 text-right">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {db.students.map(s => (
+                                                <tr key={s.id}>
+                                                    <td className="py-3 font-bold text-slate-800">{s.name}</td>
+                                                    <td className="py-3 font-mono text-slate-600">{s.username}</td>
+                                                    <td className="py-3 font-mono text-slate-400">{s.password}</td>
+                                                    <td className="py-3 text-right"><Badge variant="green">{s.status}</Badge></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* View: Profile Settings (Teacher only) */}
+                    {currentView === 'profile' && user.role === 'teacher' && (
+                        <div className="max-w-2xl space-y-6">
+                            <div>
+                                <h1 className="text-xl font-black text-slate-800">Pengaturan Profil & Kelas</h1>
+                                <p className="text-xs text-slate-400 font-medium">Atur informasi identitas pengajar dan sekolah Anda.</p>
+                            </div>
+
+                            <Card>
+                                <form onSubmit={handleSaveProfile} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Nama Guru / Pengajar</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={profileForm.teacherName || ''} 
+                                            onChange={e => setProfileForm(p => ({ ...p, teacherName: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Nama Kelas</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={profileForm.className || ''} 
+                                            onChange={e => setProfileForm(p => ({ ...p, className: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Nama Sekolah</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={profileForm.school || ''} 
+                                            onChange={e => setProfileForm(p => ({ ...p, school: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Tahun Ajaran</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={profileForm.year || ''} 
+                                            onChange={e => setProfileForm(p => ({ ...p, year: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                        />
+                                    </div>
+
+                                    <Button type="submit" variant="success" className="w-full py-3 mt-4">
+                                        <i className="ph-bold ph-floppy-disk"></i> Simpan Perubahan Profil
+                                    </Button>
+                                </form>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Modal Tambah / Edit Materi */}
+                    <Modal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} title={materialForm.id ? "Edit Materi Pelajaran" : "Tambah Materi Pelajaran Baru"}>
+                        <form onSubmit={handleSaveMaterial} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
+                                    <select 
+                                        value={materialForm.subject} 
+                                        onChange={e => setMaterialForm(m => ({ ...m, subject: e.target.value }))}
+                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-white"
+                                    >
+                                        <option value="IPAS">IPAS</option>
+                                        <option value="Matematika">Matematika</option>
+                                        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                        <option value="Pancasila">Pancasila</option>
+                                        <option value="SBdP">SBdP</option>
+                                        <option value="PJOK">PJOK</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Pertemuan</label>
+                                    <input 
+                                        type="text" 
+                                        required 
+                                        placeholder="Contoh: Pertemuan 1"
+                                        value={materialForm.meeting} 
+                                        onChange={e => setMaterialForm(m => ({ ...m, meeting: e.target.value }))}
+                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Materi</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Masukkan judul materi"
+                                    value={materialForm.title} 
+                                    onChange={e => setMaterialForm(m => ({ ...m, title: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Ringkas</label>
+                                <textarea 
+                                    rows="2" 
+                                    required 
+                                    placeholder="Penjelasan singkat mengenai materi ini..."
+                                    value={materialForm.description} 
+                                    onChange={e => setMaterialForm(m => ({ ...m, description: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                ></textarea>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Isi / Ringkasan Lengkap Materi</label>
+                                <textarea 
+                                    rows="4" 
+                                    placeholder="Tuliskan poin-poin rangkuman materi pembelajaran di sini..."
+                                    value={materialForm.content} 
+                                    onChange={e => setMaterialForm(m => ({ ...m, content: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 font-sans"
+                                ></textarea>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Unggah Lampiran Ringkasan (Gambar / PDF)</label>
+                                <input 
+                                    type="file" 
+                                    accept="image/*,.pdf" 
+                                    onChange={handleMaterialFileUpload}
+                                    className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer"
+                                />
+                                {materialForm.attachmentName && (
+                                    <p className="text-[11px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
+                                        <i className="ph-bold ph-check"></i> Lampiran terpasang: {materialForm.attachmentName}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                                <Button type="button" variant="secondary" onClick={() => setIsMaterialModalOpen(false)}>Batal</Button>
+                                <Button type="submit" variant="primary">Simpan Materi</Button>
+                            </div>
+                        </form>
+                    </Modal>
+
+                    {/* Modal Buat Kuis */}
+                    <Modal isOpen={isQuizModalOpen} onClose={() => setIsQuizModalOpen(false)} title="Buat Kuis & Evaluasi Baru">
+                        <form onSubmit={handleSaveQuiz} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
+                                    <select 
+                                        value={quizForm.subject} 
+                                        onChange={e => setQuizForm(q => ({ ...q, subject: e.target.value }))}
+                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-white"
+                                    >
+                                        <option value="IPAS">IPAS</option>
+                                        <option value="Matematika">Matematika</option>
+                                        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                        <option value="Pancasila">Pancasila</option>
+                                        <option value="SBdP">SBdP</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Batas Waktu (Menit)</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        required 
+                                        value={quizForm.timeLimit} 
+                                        onChange={e => setQuizForm(q => ({ ...q, timeLimit: e.target.value }))}
+                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Kuis</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Contoh: Kuis Sistem Pernapasan"
+                                    value={quizForm.title} 
+                                    onChange={e => setQuizForm(q => ({ ...q, title: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Petunjuk Pengerjaan</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Petunjuk untuk siswa..."
+                                    value={quizForm.instructions} 
+                                    onChange={e => setQuizForm(q => ({ ...q, instructions: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-700">Daftar Soal ({quizForm.questions.length} Soal)</span>
+                                    <div className="flex gap-1">
+                                        <button type="button" onClick={() => handleApplyQuizPreset(2)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">2 Soal</button>
+                                        <button type="button" onClick={() => handleApplyQuizPreset(5)} className="px-2 py-1 text-[10px] font-bold bg-white border border-slate-200 rounded-lg hover:bg-sky-50 hover:text-sky-600">5 Soal</button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                    {quizForm.questions.map((q, qIndex) => (
+                                        <div key={q.id || qIndex} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-sky-600">Soal #{qIndex + 1}</span>
+                                                {quizForm.questions.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setQuizForm(prev => ({ ...prev, questions: prev.questions.filter((_, idx) => idx !== qIndex) }))}
+                                                        className="text-rose-500 hover:text-rose-700 text-xs font-bold"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                required 
+                                                placeholder="Tuliskan pertanyaan soal..."
+                                                value={q.text} 
+                                                onChange={e => {
+                                                    const newQ = [...quizForm.questions];
+                                                    newQ[qIndex].text = e.target.value;
+                                                    setQuizForm(prev => ({ ...prev, questions: newQ }));
+                                                }}
+                                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {['A', 'B', 'C', 'D'].map(optKey => (
+                                                    <div key={optKey} className="flex items-center gap-1">
+                                                        <span className="text-xs font-bold text-slate-400 w-4">{optKey}.</span>
+                                                        <input 
+                                                            type="text" 
+                                                            required
+                                                            placeholder={`Opsi ${optKey}`}
+                                                            value={q.options[optKey] || ''} 
+                                                            onChange={e => {
+                                                                const newQ = [...quizForm.questions];
+                                                                newQ[qIndex].options[optKey] = e.target.value;
+                                                                setQuizForm(prev => ({ ...prev, questions: newQ }));
+                                                            }}
+                                                            className="w-full px-2 py-1 rounded-md border border-slate-200 text-xs"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <span className="text-[11px] font-bold text-slate-600">Kunci Jawaban:</span>
+                                                <select 
+                                                    value={q.correct}
+                                                    onChange={e => {
+                                                        const newQ = [...quizForm.questions];
+                                                        newQ[qIndex].correct = e.target.value;
+                                                        setQuizForm(prev => ({ ...prev, questions: newQ }));
+                                                    }}
+                                                    className="px-2 py-1 rounded-md border border-slate-200 text-xs font-bold bg-emerald-50 text-emerald-700"
+                                                >
+                                                    <option value="A">A</option>
+                                                    <option value="B">B</option>
+                                                    <option value="C">C</option>
+                                                    <option value="D">D</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button 
+                                    type="button" 
+                                    onClick={() => setQuizForm(prev => ({
+                                        ...prev, 
+                                        questions: [...prev.questions, { id: generateId(), text: '', options: { A: '', B: '', C: '', D: '' }, correct: 'A', explanation: '' }]
+                                    }))}
+                                    className="w-full py-2 text-xs font-bold text-sky-600 bg-white border border-dashed border-sky-300 rounded-xl hover:bg-sky-50 flex items-center justify-center gap-1"
+                                >
+                                    <i className="ph-bold ph-plus"></i> Tambah Butir Soal Baru
+                                </button>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                                <Button type="button" variant="secondary" onClick={() => setIsQuizModalOpen(false)}>Batal</Button>
+                                <Button type="submit" variant="primary">Terbitkan Kuis</Button>
+                            </div>
+                        </form>
+                    </Modal>
+
+                    {/* Modal Detail / Preview Kuis */}
+                    <Modal isOpen={!!previewQuiz} onClose={() => setPreviewQuiz(null)} title={`Detail Kuis: ${previewQuiz?.title || ''}`}>
+                        {previewQuiz && (
+                            <div className="space-y-4">
+                                <div className="bg-sky-50 p-3 rounded-2xl border border-sky-100 flex items-center justify-between text-xs font-bold text-sky-800">
+                                    <span>Mata Pelajaran: {previewQuiz.subject}</span>
+                                    <span>Durasi: {previewQuiz.timeLimit} Menit</span>
+                                </div>
+                                <p className="text-xs text-slate-600 font-medium">{previewQuiz.instructions}</p>
+                                
+                                <div className="space-y-3 max-h-80 overflow-y-auto">
+                                    {previewQuiz.questions?.map((q, idx) => (
+                                        <div key={q.id || idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs space-y-2">
+                                            <p className="font-bold text-slate-800">{idx + 1}. {q.text}</p>
+                                            <div className="grid grid-cols-2 gap-2 pl-2">
+                                                {Object.entries(q.options || {}).map(([key, val]) => (
+                                                    <div key={key} className={`p-1.5 rounded-lg border text-[11px] font-semibold ${key === q.correct ? 'bg-emerald-100 border-emerald-300 text-emerald-800 font-bold' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                        {key}. {val} {key === q.correct && '✓ (Kunci)'}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex justify-end pt-2">
+                                    <Button variant="secondary" onClick={() => setPreviewQuiz(null)}>Tutup</Button>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+
+                    {/* Modal Buat Pengumuman */}
+                    <Modal isOpen={isAnnouncementModalOpen} onClose={() => setIsAnnouncementModalOpen(false)} title="Buat Pengumuman Kelas Baru">
+                        <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Pengumuman</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Masukkan judul pengumuman..."
+                                    value={announcementForm.title} 
+                                    onChange={e => setAnnouncementForm(a => ({ ...a, title: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Isi Pengumuman</label>
+                                <textarea 
+                                    rows="3" 
+                                    required 
+                                    placeholder="Tuliskan detail pengumuman untuk siswa..."
+                                    value={announcementForm.content} 
+                                    onChange={e => setAnnouncementForm(a => ({ ...a, content: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                ></textarea>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Tautan Tambahan / Link (Opsional)</label>
+                                <input 
+                                    type="url" 
+                                    placeholder="https://..."
+                                    value={announcementForm.link} 
+                                    onChange={e => setAnnouncementForm(a => ({ ...a, link: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                                <Button type="button" variant="secondary" onClick={() => setIsAnnouncementModalOpen(false)}>Batal</Button>
+                                <Button type="submit" variant="primary">Terbitkan Pengumuman</Button>
+                            </div>
+                        </form>
+                    </Modal>
+
+                    {/* Modal Tambah Siswa */}
+                    <Modal isOpen={isStudentModalOpen} onClose={() => setIsStudentModalOpen(false)} title="Tambah Data Siswa Baru">
+                        <form onSubmit={handleSaveStudent} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Contoh: Eka Rahmawati"
+                                    value={studentForm.name} 
+                                    onChange={e => setStudentForm(s => ({ ...s, name: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Username Login</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Contoh: eka06"
+                                    value={studentForm.username} 
+                                    onChange={e => setStudentForm(s => ({ ...s, username: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    placeholder="Default: 123"
+                                    value={studentForm.password} 
+                                    onChange={e => setStudentForm(s => ({ ...s, password: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                                <Button type="button" variant="secondary" onClick={() => setIsStudentModalOpen(false)}>Batal</Button>
+                                <Button type="submit" variant="primary">Simpan Siswa</Button>
+                            </div>
+                        </form>
+                    </Modal>
+
+                    {/* Modal Baca Materi Pelajaran (Material Reader) */}
+                    <Modal isOpen={!!selectedMaterial} onClose={() => setSelectedMaterial(null)} title={`Materi Pelajaran: ${selectedMaterial?.title || ''}`}>
+                        {selectedMaterial && (
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="blue">{selectedMaterial.subject}</Badge>
+                                        <span className="text-xs font-bold text-slate-500">{selectedMaterial.meeting}</span>
+                                    </div>
+                                    <span className="text-[11px] text-slate-400">
+                                        {selectedMaterial.createdAt ? new Date(selectedMaterial.createdAt).toLocaleDateString('id-ID') : ''}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <h2 className="text-lg font-black text-slate-800 mb-1">{selectedMaterial.title}</h2>
+                                    <p className="text-xs font-medium text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        "{selectedMaterial.description}"
+                                    </p>
+                                </div>
+
+                                {selectedMaterial.content && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i className="ph-bold ph-article text-sky-500"></i> Ringkasan Materi
+                                        </h4>
+                                        <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 text-xs text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
+                                            {selectedMaterial.content}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedMaterial.attachmentData && (
+                                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i className="ph-bold ph-paperclip text-amber-500"></i> Lampiran Pembelajaran
+                                        </h4>
+                                        {selectedMaterial.attachmentType === 'image' ? (
+                                            <div className="rounded-2xl overflow-hidden border border-slate-200">
+                                                <img src={selectedMaterial.attachmentData} alt="Lampiran Materi" className="w-full max-h-96 object-contain bg-slate-900/5" />
+                                            </div>
+                                        ) : (
+                                            <a 
+                                                href={selectedMaterial.attachmentData} 
+                                                download={selectedMaterial.attachmentName || "Ringkasan_Materi.pdf"}
+                                                className="p-4 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-between text-sky-700 text-xs font-bold hover:bg-sky-100 transition-colors shadow-sm"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <i className="ph-bold ph-file-pdf text-2xl text-sky-600"></i>
+                                                    <div>
+                                                        <p className="font-bold">{selectedMaterial.attachmentName || "Ringkasan_Materi.pdf"}</p>
+                                                        <p className="text-[10px] text-sky-500 font-normal">Klik untuk mengunduh dokumen PDF</p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-sky-500 text-white p-2 rounded-xl">
+                                                    <i className="ph-bold ph-download text-base"></i>
+                                                </div>
+                                            </a>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end pt-3 border-t border-slate-100">
+                                    <Button variant="secondary" onClick={() => setSelectedMaterial(null)}>
+                                        Tutup Pembaca
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+
+                    {/* Toast Notification */}
+                    <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+                </AppLayout>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<RuangKelaskuApp />);
+    </script>
+</body>
+</html>
