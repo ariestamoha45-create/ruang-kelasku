@@ -171,6 +171,8 @@
         const DEFAULT_DATA = {
             profile: {
                 teacherName: "Bu Guru Rahmawati, S.Pd.",
+                teacherUsername: "guru",
+                teacherPassword: "123",
                 className: "Kelas VI-A",
                 school: "SD Negeri 30 Lahat",
                 year: "2026/2027"
@@ -336,7 +338,9 @@
                 setError('');
 
                 if (role === 'teacher') {
-                    if ((username.trim().toLowerCase() === 'guru' || username.trim() !== '') && password === '123') {
+                    const teacherUsername = (db.profile.teacherUsername || 'guru').trim().toLowerCase();
+                    const teacherPassword = db.profile.teacherPassword || '123';
+                    if (username.trim().toLowerCase() === teacherUsername && password === teacherPassword) {
                         onLogin({
                             role: 'teacher',
                             name: db.profile.teacherName,
@@ -344,7 +348,7 @@
                         });
                         showToast(`Selamat datang, ${db.profile.teacherName}!`);
                     } else {
-                        setError('Username atau Password Guru salah! (Default: username: guru, pass: 123)');
+                        setError('Username atau password guru salah.');
                     }
                 } else {
                     const foundStudent = db.students.find(
@@ -428,7 +432,7 @@
                                     <input
                                         type="password"
                                         required
-                                        placeholder="Masukkan password (default: 123)"
+                                        placeholder="Masukkan password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-slate-50/50 focus:bg-white transition-all"
@@ -808,6 +812,32 @@
                 }
 
                 showToast("Profil guru & kelas berhasil diperbarui!");
+            };
+
+            const handleDeleteGrade = (id) => {
+                const grade = db.grades.find(g => g.id === id);
+                if (!grade) return;
+                const confirmed = window.confirm(`Hapus nilai ${grade.studentName} untuk "${grade.quizTitle}"?\\n\\nData hasil pengerjaan ini akan dihapus dari Laporan Nilai.`);
+                if (!confirmed) return;
+
+                setDb(prev => ({
+                    ...prev,
+                    grades: prev.grades.filter(g => g.id !== id)
+                }));
+                showToast("Nilai berhasil dihapus.");
+            };
+
+            const handleDeleteAllGrades = () => {
+                if (!db.grades.length) {
+                    showToast("Belum ada nilai yang tersimpan.");
+                    return;
+                }
+
+                const confirmed = window.confirm(`Hapus SEMUA nilai?\\n\\nSebanyak ${db.grades.length} hasil pengerjaan akan dihapus dan tidak dapat dikembalikan.`);
+                if (!confirmed) return;
+
+                setDb(prev => ({ ...prev, grades: [] }));
+                showToast("Semua nilai berhasil dihapus.");
             };
 
             const handleSaveAnnouncement = (e) => {
@@ -1452,9 +1482,18 @@ Ketentuan:
                     {/* View: Laporan Nilai (Teacher only) */}
                     {currentView === 'reports' && user.role === 'teacher' && (
                         <div className="space-y-6">
-                            <div>
-                                <h1 className="text-xl font-black text-slate-800">Laporan Nilai Siswa</h1>
-                                <p className="text-xs text-slate-400 font-medium">Rekapitulasi hasil kerja kuis dan evaluasi belajar siswa.</p>
+                            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800">Laporan Nilai Siswa</h1>
+                                    <p className="text-xs text-slate-400 font-medium">Rekapitulasi hasil kerja kuis dan evaluasi belajar siswa.</p>
+                                </div>
+                                <Button
+                                    variant="danger"
+                                    onClick={handleDeleteAllGrades}
+                                    disabled={db.grades.length === 0}
+                                >
+                                    <i className="ph-bold ph-trash"></i> Hapus Semua Nilai
+                                </Button>
                             </div>
 
                             <Card>
@@ -1467,10 +1506,17 @@ Ketentuan:
                                                 <th className="pb-3">Mata Pelajaran</th>
                                                 <th className="pb-3 text-center">Nilai</th>
                                                 <th className="pb-3 text-right">Tanggal Pengerjaan</th>
+                                                <th className="pb-3 text-right">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {db.grades.map(g => (
+                                            {db.grades.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" className="py-10 text-center text-slate-400 font-semibold">
+                                                        Belum ada nilai yang tersimpan.
+                                                    </td>
+                                                </tr>
+                                            ) : db.grades.map(g => (
                                                 <tr key={g.id} className="hover:bg-slate-50">
                                                     <td className="py-3 font-bold text-slate-800">{g.studentName}</td>
                                                     <td className="py-3 font-semibold text-slate-700">{g.quizTitle}</td>
@@ -1482,6 +1528,16 @@ Ketentuan:
                                                     </td>
                                                     <td className="py-3 text-right text-slate-400">
                                                         {new Date(g.date).toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td className="py-3 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteGrade(g.id)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-bold text-[11px] transition-colors"
+                                                            title="Hapus nilai"
+                                                        >
+                                                            <i className="ph-bold ph-trash"></i> Hapus
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1597,6 +1653,40 @@ Ketentuan:
 
                             <Card>
                                 <form onSubmit={handleSaveProfile} className="space-y-4">
+                                    <div className="p-4 bg-sky-50 border border-sky-100 rounded-2xl">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <i className="ph-bold ph-lock-key text-sky-600"></i>
+                                            <div>
+                                                <h3 className="text-sm font-black text-slate-800">Akun Guru</h3>
+                                                <p className="text-[11px] text-slate-500">Username dan password untuk masuk sebagai guru.</p>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1">Username Guru</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={profileForm.teacherUsername || ''}
+                                                    onChange={e => setProfileForm(p => ({ ...p, teacherUsername: e.target.value }))}
+                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-white"
+                                                    placeholder="Masukkan username guru"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1">Password Guru</label>
+                                                <input
+                                                    type="password"
+                                                    required
+                                                    value={profileForm.teacherPassword || ''}
+                                                    onChange={e => setProfileForm(p => ({ ...p, teacherPassword: e.target.value }))}
+                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-white"
+                                                    placeholder="Masukkan password guru"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 mb-1">Nama Guru / Pengajar</label>
                                         <input 
