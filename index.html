@@ -228,7 +228,7 @@
                 setError('');
 
                 if (role === 'teacher') {
-                    if ((username.trim().toLowerCase() === 'guru' || username.trim() !== '') && password === '123') {
+                    if (username.trim().toLowerCase() === 'guru' && password === '123') {
                         onLogin({
                             role: 'teacher',
                             name: db.profile.teacherName,
@@ -236,7 +236,7 @@
                         });
                         showToast(`Selamat datang, ${db.profile.teacherName}!`);
                     } else {
-                        setError('Username atau Password Guru salah! (Default: username: guru, pass: 123)');
+                        setError('Username atau password Guru salah.');
                     }
                 } else {
                     const foundStudent = db.students.find(
@@ -251,20 +251,11 @@
                         });
                         showToast(`Selamat datang, ${foundStudent.name}!`);
                     } else {
-                        setError('Username/Password Siswa tidak cocok! (Contoh: ahmad06 / 123)');
+                        setError('Username atau password Siswa salah.');
                     }
                 }
             };
 
-            const quickLoginTeacher = () => {
-                onLogin({ role: 'teacher', name: db.profile.teacherName, username: 'guru' });
-                showToast(`Login sebagai Guru: ${db.profile.teacherName}`);
-            };
-
-            const quickLoginStudent = (student) => {
-                onLogin({ role: 'student', id: student.id, name: student.name, username: student.username });
-                showToast(`Login sebagai Siswa: ${student.name}`);
-            };
 
             return (
                 <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -330,7 +321,7 @@
                                     <input
                                         type="password"
                                         required
-                                        placeholder="Masukkan password (default: 123)"
+                                        placeholder="Masukkan kata sandi"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-sky-500 bg-slate-50/50 focus:bg-white transition-all"
@@ -342,37 +333,6 @@
                                 Masuk Ke Ruang Kelasku <i className="ph-bold ph-sign-in"></i>
                             </Button>
                         </form>
-
-                        <div className="pt-4 border-t border-slate-100 space-y-2">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center">Akses Cepat (Tanpa Ketik):</p>
-                            <div className="flex flex-col gap-1.5">
-                                <button
-                                    type="button"
-                                    onClick={quickLoginTeacher}
-                                    className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center justify-between border border-sky-100 transition-colors"
-                                >
-                                    <span className="flex items-center gap-2 truncate">
-                                        <i className="ph-bold ph-user-gear text-sky-500"></i>
-                                        Masuk sebagai Guru ({db.profile.teacherName})
-                                    </span>
-                                    <i className="ph-bold ph-arrow-right shrink-0"></i>
-                                </button>
-                                {db.students.slice(0, 2).map((st) => (
-                                    <button
-                                        key={st.id}
-                                        type="button"
-                                        onClick={() => quickLoginStudent(st)}
-                                        className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-between border border-slate-100 transition-colors"
-                                    >
-                                        <span className="flex items-center gap-2 truncate">
-                                            <i className="ph-bold ph-user-circle text-slate-400"></i>
-                                            Masuk sebagai Siswa ({st.name})
-                                        </span>
-                                        <i className="ph-bold ph-arrow-right shrink-0"></i>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
             );
